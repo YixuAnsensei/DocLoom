@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DocLoom — 本地大模型长文档工作台</title>
+<style>
+  :root { --bg:#0f1115; --panel:#181b22; --panel2:#1f232c; --border:#2a2f3a;
+          --text:#d7dae0; --dim:#8b93a1; --accent:#4f8cff; --ok:#3fb96f; --warn:#e0a63f; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font: 14px/1.6 "Segoe UI", "Microsoft YaHei", sans-serif; display:flex; height:100vh; }
+  aside { width:240px; background:var(--panel); border-right:1px solid var(--border);
+          padding:14px; overflow-y:auto; flex-shrink:0; }
+  main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  h1 { font-size:17px; margin:0 0 12px; }
+  h1 span { color:var(--accent); }
+  .task { padding:8px 10px; border-radius:8px; cursor:pointer; margin-bottom:6px;
+          border:1px solid transparent; }
+  .task:hover { background:var(--panel2); }
+  .task.active { border-color:var(--accent); background:var(--panel2); }
+  .task .meta { color:var(--dim); font-size:12px; }
+  .badge { display:inline-block; font-size:11px; padding:0 6px; border-radius:8px;
+           background:var(--panel2); border:1px solid var(--border); color:var(--dim); }
+  .badge.run { color:var(--warn); border-color:var(--warn); }
+  nav { display:flex; gap:4px; padding:10px 14px 0; border-bottom:1px solid var(--border); }
+  nav button { background:none; border:none; color:var(--dim); padding:8px 14px;
+               cursor:pointer; font-size:14px; border-bottom:2px solid transparent; }
+  nav button.active { color:var(--text); border-bottom-color:var(--accent); }
+  section { flex:1; overflow-y:auto; padding:16px; display:none; }
+  section.active { display:block; }
+  .chapter { background:var(--panel); border:1px solid var(--border); border-radius:10px;
+             padding:10px 14px; margin-bottom:8px; cursor:pointer; }
+  .chapter:hover { background:var(--panel2); }
+  .chapter .st { margin-right:8px; }
+  .chapter .refs { color:var(--dim); font-size:12px; }
+  .chapter .ops { float:right; }
+  .mini { background:var(--panel2); border:1px solid var(--border); color:var(--dim);
+          border-radius:6px; cursor:pointer; padding:1px 8px; margin-left:4px; font-size:12px; }
+  .mini:hover { color:var(--text); border-color:var(--accent); }
+  textarea, input, select { width:100%; background:var(--panel2); color:var(--text);
+      border:1px solid var(--border); border-radius:8px; padding:8px; font:13px/1.5 Consolas, monospace; }
+  textarea { resize:vertical; }
+  button.btn { background:var(--accent); color:#fff; border:none; border-radius:8px;
+               padding:7px 16px; cursor:pointer; margin:4px 6px 4px 0; font-size:13px; }
+  button.btn.ghost { background:var(--panel2); border:1px solid var(--border); color:var(--text); }
+  button.btn.ok { background:var(--ok); }
+  button.btn.warn { background:#b9533f; }
+  pre { background:var(--panel); border:1px solid var(--border); border-radius:10px;
+        padding:12px; white-space:pre-wrap; word-break:break-all; font-size:12.5px; }
+  #log-box { height:calc(100vh - 170px); overflow-y:auto; }
+  .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .hint { color:var(--dim); font-size:12.5px; }
+  dialog { background:var(--panel); color:var(--text); border:1px solid var(--border);
+           border-radius:12px; padding:20px; width:420px; }
+  dialog::backdrop { background:rgba(0,0,0,.55); }
+  label { display:block; margin:10px 0 4px; color:var(--dim); }
+  .detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:1100px){ .detail-grid { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<aside>
+  <h1>Doc<span>Loom</span></h1>
+  <button class="btn" style="width:100%" onclick="dlgNew.showModal()">＋ 新建任务</button>
+  <div id="task-list" style="margin-top:10px"></div>
+</aside>
+<main>
+  <nav id="tabs">
+    <button data-tab="chapters" class="active">章节</button>
+    <button data-tab="run">运行</button>
+    <button data-tab="output">输出预览</button>
+    <button data-tab="settings">设置</button>
+    <button data-tab="review">Review 预览</button>
+  </nav>
+
+  <section id="tab-chapters" class="active">
+    <div id="chapter-list"></div>
+    <div id="chapter-toolbar">
+      <button class="btn ghost" onclick="addChapter()">＋ 新增章节</button>
+      <span class="hint">增删/排序会同步各章的完成状态与候选稿，删除不影响报告里已生成的正文</span>
+    </div>
+    <div id="chapter-detail" style="display:none">
+      <button class="btn ghost" onclick="showChapterList()">← 返回章节列表</button>
+      <h3 id="cd-title"></h3>
+      <label>章节提示词（保存后生效）</label>
+      <textarea id="cd-prompt" rows="10"></textarea>
+      <label>参考资料（勾选下方文件自动加入 ref_files）</label>
+      <div id="cd-refs-list" style="background:var(--panel2);border:1px solid var(--border);
+           border-radius:8px;padding:6px 10px;max-height:200px;overflow-y:auto;
+           columns:2;column-rule:1px solid var(--border);font-size:12.5px"></div>
+      <input id="cd-refs" style="display:none">
+      <div style="margin-top:8px">
+        <button class="btn" onclick="saveChapter()">保存提示词/参考</button>
+        <button class="btn ghost" onclick="runOne()">重新生成本章</button>
+        <button class="btn ghost" onclick="researchChapter()">为本章联网检索素材</button>
+      </div>
+      <label>对本章提出修改要求（生成候选稿，不直接覆盖）</label>
+      <textarea id="cd-instruction" rows="3" placeholder="例如：第二段补充与 XX 的对比，语言更精炼"></textarea>
+      <button class="btn" onclick="modifyChapter()">生成候选稿</button>
+      <div class="detail-grid" style="margin-top:12px">
+        <div><h4>当前版本</h4><pre id="cd-content">（尚未生成）</pre></div>
+        <div id="cd-cand-box" style="display:none">
+          <h4>候选稿 <button class="btn ok" onclick="acceptCand()">接受</button>
+              <button class="btn warn" onclick="rejectCand()">放弃</button></h4>
+          <pre id="cd-candidate"></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-run">
+    <div class="row">
+      <button class="btn" onclick="runAll()">▶ 生成全部 pending 章节</button>
+      <button class="btn ghost" onclick="resetAll()">全部重置为 pending</button>
+      <span id="run-state" class="hint"></span>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn ghost" onclick="runIngest('parse')">解析 raw 资料 (parse)</button>
+      <button class="btn ghost" onclick="runIngest('extract-images')">抽取 PDF 图片</button>
+      <button class="btn ghost" onclick="runIngest('caption')">生成图片描述 (caption)</button>
+      <span class="hint">先把 PDF/DOCX 丢进 data/raw/ 再点解析；caption 需要模型在线</span>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <input id="research-query" placeholder="联网检索词（可用逗号分隔多条）" style="width:340px">
+      <input id="research-name" placeholder="输出文件名片段（可选）" style="width:180px">
+      <button class="btn ghost" onclick="startResearch()">🔍 联网检索</button>
+      <span class="hint">结果存入 data/processed/web_*.txt，把文件名填进章节参考即可使用</span>
+    </div>
+    <pre id="log-box">（暂无日志）</pre>
+  </section>
+
+  <section id="tab-output">
+    <div class="row"><button class="btn ghost" onclick="loadOutput()">刷新</button>
+      <span id="output-file" class="hint"></span></div>
+    <pre id="output-box"></pre>
+  </section>
+
+  <section id="tab-settings">
+    <p class="hint">直接编辑 settings.json（模型、API 地址、上下文窗口、截断策略、视觉/状态链开关等），保存立即生效。</p>
+    <textarea id="settings-box" rows="26"></textarea>
+    <br><button class="btn" onclick="saveSettings()">保存设置</button>
+    <span id="settings-msg" class="hint"></span>
+    <hr style="border-color:var(--border);margin:18px 0">
+    <h4 style="margin:0 0 4px">把当前任务存为模板</h4>
+    <p class="hint">导出 settings + prompts 到 templates/，之后任何新任务都能一键复用这套配置——这就是把 DocLoom 泛化到新文档类型的方式。</p>
+    <div class="row">
+      <input id="tpl-name" placeholder="模板名（英文/拼音）" style="width:180px">
+      <input id="tpl-desc" placeholder="一句话描述（可选）" style="width:280px">
+      <label style="margin:0"><input type="checkbox" id="tpl-force" style="width:auto"> 覆盖同名</label>
+      <button class="btn ghost" onclick="saveAsTemplate()">导出模板</button>
+      <span id="tpl-msg" class="hint"></span>
+    </div>
+  </section>
+
+  <section id="tab-review">
+    <div class="row"><button class="btn ghost" onclick="loadReview()">重新生成预览</button>
+      <span class="hint">含每章 token 预算与缺失参考文件检查（同 docloom review）</span></div>
+    <pre id="review-box"></pre>
+  </section>
+</main>
+
+<dialog id="dlgNew">
+  <h3>新建任务</h3>
+  <label>任务名（英文/拼音目录名）</label><input id="new-name">
+  <label>模板</label><select id="new-template"><option value="">（空白任务）</option></select>
+  <div style="margin-top:14px">
+    <button class="btn" onclick="createTask()">创建</button>
+    <button class="btn ghost" onclick="dlgNew.close()">取消</button>
+  </div>
+</dialog>
+
+<script>
+let currentTask = null, currentChapter = null, logTimer = null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+  .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+const api = async (path, opts) => {
+  const r = await fetch('/api' + path, opts ? Object.assign({
+    headers: {'Content-Type':'application/json'}}, opts) : undefined);
+  if (!r.ok) { const t = await r.text(); throw new Error(t); }
+  return r.json();
+};
+const post = (path, body) => api(path, {method:'POST', body: JSON.stringify(body||{})});
+const put  = (path, body) => api(path, {method:'PUT',  body: JSON.stringify(body)});
+
+// ---------- 任务列表 ----------
+async function loadTasks() {
+  const tasks = await api('/tasks');
+  $('task-list').innerHTML = tasks.map(t => `
+    <div class="task ${t.name===currentTask?'active':''}" data-name="${esc(t.name)}"
+         onclick="selectTask(this.dataset.name)">
+      <div>${esc(t.name)} ${t.running?'<span class="badge run">运行中</span>':''}</div>
+      <div class="meta">${esc(t.project_name)}</div>
+      <div class="meta">${t.completed}/${t.chapters} 章完成</div>
+    </div>`).join('') || '<p class="hint">暂无任务，点上方新建</p>';
+  if (!currentTask && tasks.length) selectTask(tasks[0].name);
+}
+async function selectTask(name) {
+  currentTask = name; currentChapter = null;
+  showChapterList();
+  await Promise.all([loadTasks(), loadChapters(), loadSettings(), loadOutput()]);
+  startLogPolling();
+}
+
+// ---------- 章节 ----------
+let chapterCount = 0;
+async function loadChapters() {
+  if (!currentTask) return;
+  const chapters = await api(`/tasks/${currentTask}/chapters`);
+  chapterCount = chapters.length;
+  $('chapter-list').innerHTML = chapters.map(c => `
+    <div class="chapter" onclick="openChapter(${c.index})">
+      <span class="ops">
+        <button class="mini" onclick="moveChapter(event,${c.index},-1)">↑</button>
+        <button class="mini" onclick="moveChapter(event,${c.index},1)">↓</button>
+        <button class="mini" data-chapter="${esc(c.chapter)}"
+                onclick="deleteChapter(event,${c.index},this.dataset.chapter)">✕</button>
+      </span>
+      <span class="st">${c.status==='completed'?'✅':'⬜'}</span>
+      <b>${c.index+1}. ${esc(c.chapter)}</b>
+      ${c.has_candidate?'<span class="badge run">候选稿待处理</span>':''}
+      <div class="refs">${c.ref_files.length?('参考: '+esc(c.ref_files.join(', '))):'（无参考资料）'}</div>
+    </div>`).join('');
+}
+function showChapterList(){ $('chapter-detail').style.display='none';
+  $('chapter-list').style.display='block'; $('chapter-toolbar').style.display='block'; }
+async function openChapter(i) {
+  currentChapter = i;
+  const [d, refs] = await Promise.all([
+    api(`/tasks/${currentTask}/chapters/${i}`),
+    api(`/tasks/${currentTask}/refs`).catch(() => [])
+  ]);
+  $('chapter-list').style.display='none'; $('chapter-toolbar').style.display='none';
+  $('chapter-detail').style.display='block';
+  $('cd-title').textContent = `第 ${i+1} 章：${d.prompt_def.chapter}`;
+  $('cd-prompt').value = d.prompt_def.prompt;
+  const selected = new Set(d.prompt_def.ref_files||[]);
+  $('cd-refs-list').innerHTML = refs.map(r =>
+    `<label style="display:flex;align-items:center;margin:1px 0;cursor:pointer;break-inside:avoid">
+       <input type="checkbox" value="${esc(r.name)}"
+              onchange="syncRefsFromCheckboxes()" style="width:auto;margin-right:5px"
+              ${selected.has(r.name)?'checked':''}>
+       <span class="hint">${r.kind}</span> ${esc(r.name)}
+     </label>`).join('') || '<p class="hint">（暂无可用参考资料）</p>';
+  $('cd-content').textContent = d.content || '（尚未生成）';
+  $('cd-cand-box').style.display = d.candidate ? 'block' : 'none';
+  $('cd-candidate').textContent = d.candidate || '';
+  $('cd-instruction').value = '';
+}
+function syncRefsFromCheckboxes() {
+  const boxes = document.querySelectorAll('#cd-refs-list input[type="checkbox"]');
+  $('cd-refs').value = Array.from(boxes).filter(cb => cb.checked)
+    .map(cb => cb.value).join(', ');
+}
+async function saveChapter() {
+  syncRefsFromCheckboxes();
+  const prompts = await api(`/tasks/${currentTask}/prompts`);
+  prompts[currentChapter].prompt = $('cd-prompt').value;
+  await put(`/tasks/${currentTask}/prompts`, prompts);
+  await put(`/tasks/${currentTask}/chapters/${currentChapter}/refs`,
+    $('cd-refs').value.split(',').map(s=>s.trim()).filter(Boolean));
+  alert('已保存');
+}
+async function runOne() {
+  await saveChapterSilent();
+  await post(`/tasks/${currentTask}/run`, {index: currentChapter}).catch(alertErr);
+  switchTab('run');
+}
+async function saveChapterSilent(){
+  syncRefsFromCheckboxes();
+  const prompts = await api(`/tasks/${currentTask}/prompts`);
+  prompts[currentChapter].prompt = $('cd-prompt').value;
+  await put(`/tasks/${currentTask}/prompts`, prompts);
+  await put(`/tasks/${currentTask}/chapters/${currentChapter}/refs`,
+    $('cd-refs').value.split(',').map(s=>s.trim()).filter(Boolean));
+}
+async function modifyChapter() {
+  const instruction = $('cd-instruction').value.trim();
+  if (!instruction) return alert('请填写修改要求');
+  await post(`/tasks/${currentTask}/modify`, {index: currentChapter, instruction}).catch(alertErr);
+  switchTab('run');
+}
+async function acceptCand() {
+  await post(`/tasks/${currentTask}/chapters/${currentChapter}/accept`);
+  await openChapter(currentChapter); await loadChapters(); loadOutput();
+}
+async function rejectCand() {
+  await post(`/tasks/${currentTask}/chapters/${currentChapter}/reject`);
+  await openChapter(currentChapter); await loadChapters();
+}
+
+// ---------- 章节增删排序 ----------
+async function addChapter() {
+  const name = prompt('新章节标题（会成为报告里的 ## 标题）：');
+  if (!name || !name.trim()) return;
+  await post(`/tasks/${currentTask}/chapters`, {chapter: name.trim()}).catch(alertErr);
+  loadChapters(); loadTasks();
+}
+async function deleteChapter(ev, i, chapterName) {
+  ev.stopPropagation();
+  if (!confirm(`删除章节「${chapterName}」的定义？\n（报告里已生成的正文不会被删除）`)) return;
+  await api(`/tasks/${currentTask}/chapters/${i}`, {method:'DELETE'}).catch(alertErr);
+  loadChapters(); loadTasks();
+}
+async function moveChapter(ev, i, delta) {
+  ev.stopPropagation();
+  const j = i + delta;
+  if (j < 0 || j >= chapterCount) return;  // 越界静默忽略
+  await post(`/tasks/${currentTask}/chapters/${i}/move`, {delta}).catch(alertErr);
+  loadChapters();
+}
+
+// ---------- 运行与日志 ----------
+async function runAll(){ await post(`/tasks/${currentTask}/run`, {}).catch(alertErr); }
+async function runIngest(kind){
+  await post(`/tasks/${currentTask}/ingest`, {kind}).catch(alertErr);
+}
+async function startResearch() {
+  const raw = $('research-query').value.trim();
+  if (!raw) return alert('请填写检索词（多条用逗号分隔）');
+  const queries = raw.split(/[,，]/).map(s=>s.trim()).filter(Boolean);
+  await post(`/tasks/${currentTask}/research`,
+    {queries, name: $('research-name').value.trim()}).catch(alertErr);
+}
+async function researchChapter() {
+  if (!confirm('让模型根据本章提示词自动生成检索词并联网搜索素材？\n结果会存为 data/processed/web_*.txt，需要你手动加入本章参考。')) return;
+  await post(`/tasks/${currentTask}/research`,
+    {queries: [], chapter_index: currentChapter}).catch(alertErr);
+  switchTab('run');
+}
+async function resetAll(){
+  if (!confirm('确定把所有章节重置为 pending 吗？（不会删除已生成的报告文件）')) return;
+  await post(`/tasks/${currentTask}/reset`, {}); loadChapters();
+}
+function startLogPolling() {
+  if (logTimer) clearInterval(logTimer);
+  logTimer = setInterval(async () => {
+    if (!currentTask) return;
+    try {
+      const d = await api(`/tasks/${currentTask}/log`);
+      $('run-state').textContent = d.running ? '● 运行中…' : '空闲';
+      const box = $('log-box');
+      const stick = box.scrollTop + box.clientHeight >= box.scrollHeight - 30;
+      box.textContent = d.lines.join('\n') || '（暂无日志）';
+      if (stick) box.scrollTop = box.scrollHeight;
+      if (!d.running && d.lines.length) { loadTasks(); }
+    } catch(e) {}
+  }, 1500);
+}
+
+// ---------- 输出 / 设置 / review ----------
+async function loadOutput() {
+  if (!currentTask) return;
+  const d = await api(`/tasks/${currentTask}/output`);
+  $('output-file').textContent = d.file;
+  $('output-box').textContent = d.content || '（还没有输出，先运行生成）';
+}
+async function loadSettings() {
+  const s = await api(`/tasks/${currentTask}/settings`);
+  $('settings-box').value = JSON.stringify(s, null, 2);
+}
+async function saveSettings() {
+  try {
+    const parsed = JSON.parse($('settings-box').value);
+    await put(`/tasks/${currentTask}/settings`, parsed);
+    $('settings-msg').textContent = '✓ 已保存'; setTimeout(()=>$('settings-msg').textContent='',2000);
+  } catch(e) { alert('JSON 格式错误: ' + e.message); }
+}
+async function saveAsTemplate() {
+  const name = $('tpl-name').value.trim();
+  if (!name) return alert('请填写模板名');
+  try {
+    await post(`/tasks/${currentTask}/save-template`, {
+      name, description: $('tpl-desc').value.trim(), force: $('tpl-force').checked});
+    $('tpl-msg').textContent = '✓ 已导出，新建任务即可选用';
+    setTimeout(()=>$('tpl-msg').textContent='', 4000);
+    loadTemplates();
+  } catch(e) { alertErr(e); }
+}
+async function loadReview() {
+  $('review-box').textContent = '生成中…（需要计算 token，稍等）';
+  const d = await api(`/tasks/${currentTask}/review`);
+  $('review-box').textContent = d.content;
+}
+
+// ---------- 新建任务 ----------
+async function loadTemplates() {
+  const tpls = await api('/templates');
+  $('new-template').innerHTML = '<option value="">（空白任务）</option>' +
+    tpls.map(t=>`<option value="${esc(t.name)}">${esc(t.name)}${t.description?' — '+esc(t.description):''}</option>`).join('');
+}
+async function createTask() {
+  const name = $('new-name').value.trim();
+  if (!name) return alert('请填写任务名');
+  await post('/tasks', {name, template: $('new-template').value || null}).catch(alertErr);
+  dlgNew.close(); currentTask = name; await loadTasks(); selectTask(name);
+}
+
+// ---------- tabs ----------
+function switchTab(tab) {
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  document.querySelectorAll('section').forEach(s=>s.classList.toggle('active', s.id==='tab-'+tab));
+  if (tab==='output') loadOutput();
+}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
+const alertErr = e => alert('操作失败: ' + e.message);
+
+loadTasks(); loadTemplates(); startLogPolling();
+setInterval(loadTasks, 8000);
+</script>
+</body>
+</html>

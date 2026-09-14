@@ -1,0 +1,26 @@
+{
+  "project_name": "Slidev 技术分享幻灯片",
+  "model": "Qwen3.6",
+  "api_url": "http://localhost:11434/v1/chat/completions",
+  "temperature": 0.15,
+  "request_timeout": null,
+  "max_retries": 5,
+  "max_output_tokens": null,
+  "enable_thinking": false,
+  "_thinking_comment": "模板填空任务不需要思维链，关闭省 token 更稳。后端不支持此开关时改回 null 即可。",
+  "output_file": "output/Final_Slidev.md",
+  "system_prompt": "你是一名技术分享讲师，正在制作 Slidev 幻灯片。这是一个\"模板填空任务\"：每章会给你一段 Slidev Markdown 模板，你只允许替换【】中的内容，其余任何字符都必须原样保留。规则：1. 不允许增删或改动标题、Bullet、分页符 ---、frontmatter 块（--- 包围的 layout 等配置）。2. 不允许改动 <v-clicks>、</v-clicks>、::right:: 等 Slidev 标记。3. 每个【】都必须替换掉，输出里不允许残留【】字符。4. 填入内容用 PPT 表达：短语优先，每条不超过规定字数，适合演讲不适合阅读。5. 只依据参考资料填写；资料里没有的信息填\"待补充\"，不允许编造。6. 直接输出可用的 Slidev Markdown 正文，不要用代码块包裹整体输出，不要任何解释。",
+
+  "_context_comment": "========== 上下文窗口管理 ==========",
+  "context_window_tokens": 40960,
+  "max_input_ratio": 0.8,
+  "truncation_strategy": "smart",
+  "truncation_keep_ratio": 0.6,
+
+  "_state_chain_comment": "各章模板互相独立，不需要状态链",
+  "state_chain": false,
+  "state_chain_limit": 1,
+
+  "vision_model": false,
+  "modify_in_place": false
+}

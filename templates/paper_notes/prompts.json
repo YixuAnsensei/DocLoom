@@ -1,0 +1,34 @@
+[
+  {
+    "chapter": "论文一：Spatial-Temporal Likelihoods",
+    "prompt": "请快速阅读论文的 Abstract、Introduction 和 Conclusion。请直接使用以下Markdown格式输出，补充括号【】中的内容即可：\n\n## 一、基于时空似然的免训练检测\n- **核心方法**：【用1-2句话概括作者提出了什么方法，它是如何利用 Spatial-Temporal Likelihoods 来区分真假视频的】\n- **方法对比**：【相较于现有的需要大量训练数据的模型，该免训练方法有什么根本性的优势】\n- **核心优缺点**：【优点：一句话总结；缺点/局限性：一句话总结（如未提及填“未明确提及”）】\n- **关键结论**：【一句话总结这篇文章最终证实的结论】",
+    "ref_files": [
+      "paper1.txt"
+    ],
+    "image_hints": []
+  },
+  {
+    "chapter": "论文二：Perceptual Straightening",
+    "prompt": "请快速阅读论文《AI-Generated Video Detection via Perceptual Straightening》的 Abstract、Introduction 和 Conclusion。严格按照以下 Markdown 模板填空并输出：\n\n## 二、基于感知拉直假设的视频检测\n- **核心方法**：【用1-2句话概括什么是 Perceptual Straightening（感知拉直），以及作者是如何将其应用于视频真伪检测的】\n- **方法对比**：【与现有的视频检测基线方法相比，该方法切入点的新颖之处在哪里】\n- **核心优缺点**：【优点：一句话总结；缺点/局限性：一句话总结（如作者未提及，填“结论未明确提及局限性”）】\n- **关键结论**：【一句话总结这篇文章最终证实的结论】",
+    "ref_files": [
+      "paper2.txt"
+    ],
+    "image_hints": []
+  },
+  {
+    "chapter": "论文三：Physics-Driven Spatiotemporal Modeling",
+    "prompt": "请快速阅读论文的 Abstract、Introduction 和 Conclusion。请直接使用以下Markdown格式输出，补充括号【】中的内容即可：\n\n## 三、物理驱动的时空建模检测\n- **核心方法**：【用1-2句话概括作者引入了什么“物理驱动”的概念，以及如何进行时空建模】\n- **方法对比**：【相较于纯数据驱动的现有方法，引入物理先验带来了什么对比优势】\n- **核心优缺点**：【优点：一句话总结；缺点/局限性：一句话总结（如未提及填“未明确提及”）】\n- **关键结论**：【一句话总结这篇文章最终证实的结论】",
+    "ref_files": [
+      "paper3.txt"
+    ],
+    "image_hints": []
+  },
+  {
+    "chapter": "论文四：D3 - Second-Order Features",
+    "prompt": "请快速阅读论文《D3: Training-Free AI-Generated Video Detection Using Second-Order Features》的 Abstract、Introduction 和 Conclusion。严格按照以下 Markdown 模板填空并输出：\n\n## 四、D3：基于二阶特征的免训练检测\n- **核心方法**：【用1-2句话概括D3框架的核心原理，什么是“二阶特征（Second-Order Features）”】\n- **方法对比**：【相较于只看一阶帧间差异或其他复杂训练模型，D3（免训练+二阶特征）解决了什么痛点】\n- **核心优缺点**：【优点：一句话总结；缺点/局限性：一句话总结（如作者未提及，填“结论未明确提及局限性”）】\n- **关键结论**：【一句话总结这篇文章最终证实的结论】",
+    "ref_files": [
+      "paper4.txt"
+    ],
+    "image_hints": []
+  }
+]

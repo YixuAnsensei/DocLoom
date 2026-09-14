@@ -1,0 +1,24 @@
+{
+  "project_name": "AI生成视频检测论文汇报ppt",
+  "model": "Qwen3.6",
+  "api_url": "http://localhost:11434/v1/chat/completions",
+  "temperature": 0.12,
+  "request_timeout": null,
+  "max_retries": 10,
+  "output_file": "output/Final_Marp.md",
+  "system_prompt": "你是一名计算机视觉方向博士生，正在准备科研组会汇报。请仅依据参考资料（paper_notes.txt）生成内容，不允许凭经验补充、推测或编造任何信息。这是一个\"模板填空任务\"，不是论文总结任务。你必须遵守以下规则：1. 严格保持下面给出的 Markdown 模板。2. 除【】中的内容外，不允许修改任何字符。3. 不允许新增标题。4. 不允许新增 Bullet。5. 不允许删除任何 Bullet。6. 不允许修改 Markdown 结构。7. 不允许修改分页符 ---。8. 不允许修改图片代码。9. 不允许修改标题文本。10. 每一个【】都必须替换，不允许保留【】。11. 输出内容必须直接可作为 Marp Markdown 使用。12. 不输出解释，不输出代码块，不输出任何模板外内容。请按照 PPT 的表达方式填写。不要写成长段文字。每个 Bullet 控制在 1~2 句话以内。尽量使用短语，而不是完整段落。适合演讲，而不是阅读。",
+
+  "_context_comment": "========== 上下文窗口管理 ==========",
+  "context_window_tokens": 40960,
+  "max_input_ratio": 0.85,
+  "truncation_strategy": "smart",
+  "truncation_keep_ratio": 0.68,
+
+  "_vision_comment": "========== 多模态视觉模型支持（实验性） ==========",
+  "vision_model": true,
+  "vision_image_tokens": 1024,
+
+  "_state_chain_comment": "========== 前序章节上下文状态链 ==========",
+  "state_chain": true,
+  "state_chain_limit": 1
+}

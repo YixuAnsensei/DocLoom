@@ -1,0 +1,24 @@
+{
+  "project_name": "AI视频检测四篇速览abstract",
+  "model": "Qwen3.6",
+  "api_url": "http://localhost:11434/v1/chat/completions",
+  "temperature": 0.24,
+  "request_timeout": null,
+  "max_retries": 10,
+  "output_file": "output/Final_Abstract.md",
+  "system_prompt": "你是一个高效的学术助教。当前任务是帮研究员在30分钟内提炼论文核心要点以应对会议汇报。你只需重点阅读参考资料中的 Abstract, Introduction 和 Conclusion 部分。必须严格按照提供的 Markdown 模板输出，仅允许替换括号【】内的内容，绝不输出任何多余的寒暄、解释或代码块符号。",
+
+  "_context_comment": "========== 上下文窗口管理 ==========",
+  "context_window_tokens": 65536,
+  "max_input_ratio": 0.78,
+  "truncation_strategy": "smart",
+  "truncation_keep_ratio": 0.68,
+
+  "_vision_comment": "========== 多模态视觉模型支持（实验性） ==========",
+  "vision_model": true,
+  "vision_image_tokens": 1024,
+
+  "_state_chain_comment": "========== 前序章节上下文状态链 ==========",
+  "state_chain": false,
+  "state_chain_limit": 1
+}
